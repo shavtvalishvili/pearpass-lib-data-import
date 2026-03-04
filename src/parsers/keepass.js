@@ -7,6 +7,7 @@ const kdbxweb = _kdbxweb.default || _kdbxweb
 
 import { addHttps } from '../utils/addHttps'
 import { getRowsFromCsv } from '../utils/getRowsFromCsv'
+import { parseKeePassTotpFields, parseOtpField } from '../utils/parseOtpField'
 
 kdbxweb.CryptoEngine.setArgon2Impl(
   (password, salt, memory, iterations, length, parallelism, type) => {
@@ -71,6 +72,7 @@ const walkGroup = (group, parentPath = '') => {
     const notes = getFieldText(fields.get('Notes'))
 
     const customFields = []
+    const totpFields = {}
 
     for (const [key, value] of fields) {
       if (STANDARD_FIELDS.has(key)) continue
@@ -79,11 +81,13 @@ const walkGroup = (group, parentPath = '') => {
       if (!text) continue
 
       if (TOTP_FIELDS.has(key)) {
-        customFields.push({ type: 'note', note: `TOTP: ${text}` })
+        totpFields[key] = text
       } else {
         customFields.push({ type: 'note', note: `${key}: ${text}` })
       }
     }
+
+    const otp = parseKeePassTotpFields(totpFields)
 
     results.push({
       type: 'login',
@@ -95,7 +99,8 @@ const walkGroup = (group, parentPath = '') => {
         password,
         note: notes,
         websites: url ? [addHttps(url)] : [],
-        customFields
+        customFields,
+        ...(otp ? { otp } : {})
       }
     })
   }
@@ -190,7 +195,7 @@ const parseKeePassXCCsv = (headerRow, dataRows) => {
     const url = item.url || ''
     const totp = item.totp || ''
 
-    const customFields = totp ? [{ type: 'note', note: `TOTP: ${totp}` }] : []
+    const csvOtp = totp ? parseOtpField(totp) : null
 
     return {
       type: 'login',
@@ -202,7 +207,8 @@ const parseKeePassXCCsv = (headerRow, dataRows) => {
         password: item.password || '',
         note: item.notes || '',
         websites: url ? [addHttps(url)] : [],
-        customFields
+        customFields: [],
+        ...(csvOtp ? { otp: csvOtp } : {})
       }
     }
   })
@@ -308,16 +314,19 @@ const walkXmlGroup = (groupElement, parentPath = '') => {
 
     const url = fields.URL || ''
     const customFields = []
+    const xmlTotpFields = {}
 
     for (const [key, value] of Object.entries(fields)) {
       if (STANDARD_FIELDS.has(key)) continue
       if (!value) continue
       if (TOTP_FIELDS.has(key)) {
-        customFields.push({ type: 'note', note: `TOTP: ${value}` })
+        xmlTotpFields[key] = value
       } else {
         customFields.push({ type: 'note', note: `${key}: ${value}` })
       }
     }
+
+    const xmlOtp = parseKeePassTotpFields(xmlTotpFields)
 
     results.push({
       type: 'login',
@@ -329,7 +338,8 @@ const walkXmlGroup = (groupElement, parentPath = '') => {
         password: fields.Password || '',
         note: fields.Notes || '',
         websites: url ? [addHttps(url)] : [],
-        customFields
+        customFields,
+        ...(xmlOtp ? { otp: xmlOtp } : {})
       }
     })
   }

@@ -1,5 +1,6 @@
 import { addHttps } from '../utils/addHttps'
 import { getRowsFromCsv } from '../utils/getRowsFromCsv'
+import { parseOtpField } from '../utils/parseOtpField'
 
 /**
  * @param {string[]} row
@@ -32,6 +33,8 @@ export const parse1PasswordCSV = (csvText) => {
 
   return dataRows.map((row) => {
     const url = get(row, 'Url', headerRow)
+    const otpValue = get(row, 'OTP', headerRow)
+    const otp = otpValue ? parseOtpField(otpValue) : null
 
     return {
       type: 'login',
@@ -43,7 +46,8 @@ export const parse1PasswordCSV = (csvText) => {
         password: get(row, 'Password', headerRow),
         note: get(row, 'Notes', headerRow),
         websites: url ? [addHttps(url)] : [],
-        customFields: []
+        customFields: [],
+        ...(otp ? { otp } : {})
       }
     }
   })

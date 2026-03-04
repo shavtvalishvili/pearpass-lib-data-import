@@ -1,5 +1,6 @@
 import { addHttps } from '../utils/addHttps'
 import { getRowsFromCsv } from '../utils/getRowsFromCsv'
+import { parseOtpField } from '../utils/parseOtpField'
 
 /**
  * @param {{firstName?: string, middleName?: string, lastName?: string}} identity
@@ -76,22 +77,20 @@ export const parseBitwardenJson = (json) => {
     }))
 
     switch (type) {
-      case 1:
+      case 1: {
         entryType = 'login'
+        const otp = login?.totp ? parseOtpField(login.totp) : null
         data = {
           title: name,
           username: login?.username || '',
           password: login?.password || '',
           note: notes || '',
           websites: (login?.uris || []).map((u) => addHttps(u.uri)),
-          customFields: [
-            ...customFields,
-            ...(login?.totp
-              ? [{ type: 'note', note: `TOTP: ${login.totp}` }]
-              : [])
-          ]
+          customFields,
+          ...(otp ? { otp } : {})
         }
         break
+      }
 
       case 2:
         entryType = 'note'
@@ -213,8 +212,9 @@ export const parseBitwardenCSV = (csvText) => {
     let data = {}
 
     switch (type) {
-      case 'login':
+      case 'login': {
         entryType = 'login'
+        const csvOtp = login_totp ? parseOtpField(login_totp) : null
         data = {
           title: name,
           username: item.login_username || '',
@@ -225,14 +225,11 @@ export const parseBitwardenCSV = (csvText) => {
             .map((uri) => uri.trim())
             .filter(Boolean)
             .map((website) => addHttps(website)),
-          customFields: [
-            ...customFields,
-            ...(login_totp
-              ? [{ type: 'note', note: `TOTP: ${login_totp}` }]
-              : [])
-          ]
+          customFields,
+          ...(csvOtp ? { otp: csvOtp } : {})
         }
         break
+      }
 
       case 'note':
         entryType = 'note'

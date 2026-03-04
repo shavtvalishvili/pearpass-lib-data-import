@@ -1,5 +1,6 @@
 import { addHttps } from '../utils/addHttps'
 import { getRowsFromCsv } from '../utils/getRowsFromCsv'
+import { parseOtpField } from '../utils/parseOtpField'
 
 const getCustomFieldsFromContent = (content) => [
   ...(content.organization
@@ -106,12 +107,17 @@ export const parseProtonPassJson = (json) => {
       }
 
       switch (type) {
-        case 'login':
+        case 'login': {
+          const loginOtp = content.totpUri
+            ? parseOtpField(content.totpUri)
+            : null
           data = {
             ...data,
-            ...getLoginDataFromContent({ content, metadata })
+            ...getLoginDataFromContent({ content, metadata }),
+            ...(loginOtp ? { otp: loginOtp } : {})
           }
           break
+        }
 
         case 'identity':
           data = {
@@ -152,7 +158,8 @@ export const parseProtonPassCsv = (csvText) => {
 
   for (const row of rows) {
     const rowData = Object.fromEntries(row.map((v, i) => [headers[i], v]))
-    const { type, name, url, username, password, note, vault, email } = rowData
+    const { type, name, url, username, password, note, vault, email, totp } =
+      rowData
 
     let data = {
       title: name || '',
@@ -161,7 +168,8 @@ export const parseProtonPassCsv = (csvText) => {
     }
 
     switch (type) {
-      case 'login':
+      case 'login': {
+        const csvLoginOtp = totp ? parseOtpField(totp) : null
         data = {
           ...data,
           ...getLoginDataFromContent({
@@ -171,9 +179,11 @@ export const parseProtonPassCsv = (csvText) => {
               urls: url ? [url] : []
             },
             metadata: { note }
-          })
+          }),
+          ...(csvLoginOtp ? { otp: csvLoginOtp } : {})
         }
         break
+      }
 
       case 'identity':
         let identityData = {}

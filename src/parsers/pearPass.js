@@ -1,4 +1,5 @@
 import { addHttps } from '../utils/addHttps'
+import { parseOtpField } from '../utils/parseOtpField'
 
 export const parsePearPassJson = (records) =>
   records.map((record) => ({
@@ -38,6 +39,10 @@ export const parsePearPassCsv = async (text) => {
       data.websites = entry.websites
         ? entry.websites.split(';').map((w) => addHttps(w))
         : []
+      if (entry.otp) {
+        const otp = parseOtpField(entry.otp)
+        if (otp) data.otp = otp
+      }
     } else if (type === 'creditCard') {
       data.name = entry.name || ''
       data.number = entry.number || ''

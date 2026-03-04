@@ -166,16 +166,19 @@ describe('parseKeePassCsv - KeePassXC format', () => {
     expect(result[2].folder).toBe('Banking')
   })
 
-  it('maps TOTP field to customFields', () => {
+  it('maps TOTP field to otp object', () => {
     const csv = `"Group","Title","Username","Password","URL","Notes","TOTP"
 "","TOTP Entry","user","pass","example.com","","otpauth://totp/test?secret=JBSWY3DPEHPK3PXP"`
     const result = parseKeePassCsv(csv)
-    expect(result[0].data.customFields).toEqual([
-      {
-        type: 'note',
-        note: 'TOTP: otpauth://totp/test?secret=JBSWY3DPEHPK3PXP'
-      }
-    ])
+    expect(result[0].data.customFields).toEqual([])
+    expect(result[0].data.otp).toEqual({
+      secret: 'JBSWY3DPEHPK3PXP',
+      type: 'TOTP',
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+      label: 'test'
+    })
   })
 
   it('handles empty group as null folder', () => {
@@ -338,7 +341,7 @@ describe('parseKeePassXml', () => {
     ])
   })
 
-  it('handles TOTP fields', () => {
+  it('extracts TOTP fields into otp object', () => {
     const xml = `<?xml version="1.0" encoding="utf-8"?>
 <KeePassFile>
   <Root>
@@ -356,9 +359,14 @@ describe('parseKeePassXml', () => {
   </Root>
 </KeePassFile>`
     const result = parseKeePassXml(xml)
-    expect(result[0].data.customFields).toEqual([
-      { type: 'note', note: 'TOTP: JBSWY3DPEHPK3PXP' }
-    ])
+    expect(result[0].data.customFields).toEqual([])
+    expect(result[0].data.otp).toEqual({
+      secret: 'JBSWY3DPEHPK3PXP',
+      type: 'TOTP',
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30
+    })
   })
 
   it('handles entries with missing fields', () => {
@@ -529,15 +537,14 @@ describe('parseKeePassKdbx', () => {
     expect(result[1].data.title).toBe('Bank Entry')
   })
 
-  it('handles TOTP custom fields', async () => {
+  it('extracts TOTP fields into otp object', async () => {
     const mockFields = new Map([
       ['Title', 'TOTP Entry'],
       ['UserName', 'user'],
       ['Password', 'pass'],
       ['URL', ''],
       ['Notes', ''],
-      ['TOTP Seed', 'JBSWY3DPEHPK3PXP'],
-      ['otp', 'otpauth://totp/test']
+      ['TOTP Seed', 'JBSWY3DPEHPK3PXP']
     ])
 
     kdbxweb.Kdbx.load.mockResolvedValue({
@@ -551,10 +558,14 @@ describe('parseKeePassKdbx', () => {
     })
 
     const result = await parseKeePassKdbx(new ArrayBuffer(10), 'password')
-    expect(result[0].data.customFields).toEqual([
-      { type: 'note', note: 'TOTP: JBSWY3DPEHPK3PXP' },
-      { type: 'note', note: 'TOTP: otpauth://totp/test' }
-    ])
+    expect(result[0].data.customFields).toEqual([])
+    expect(result[0].data.otp).toEqual({
+      secret: 'JBSWY3DPEHPK3PXP',
+      type: 'TOTP',
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30
+    })
   })
 
   it('handles non-standard custom fields', async () => {

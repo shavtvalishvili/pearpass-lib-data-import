@@ -154,6 +154,59 @@ describe('parseBitwardenJson', () => {
     })
   })
 
+  it('extracts TOTP into otp field from JSON', () => {
+    const json = {
+      folders: [],
+      items: [
+        {
+          type: 1,
+          name: 'TOTP Login',
+          login: {
+            username: 'user',
+            password: 'pass',
+            totp: 'otpauth://totp/Test:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Test'
+          }
+        }
+      ]
+    }
+    const result = parseBitwardenJson(json)
+    expect(result[0].data.otp).toEqual({
+      secret: 'JBSWY3DPEHPK3PXP',
+      type: 'TOTP',
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+      issuer: 'Test',
+      label: 'Test:user@example.com'
+    })
+    expect(result[0].data.customFields).toEqual([])
+  })
+
+  it('extracts raw Base32 TOTP secret into otp field', () => {
+    const json = {
+      folders: [],
+      items: [
+        {
+          type: 1,
+          name: 'Raw TOTP',
+          login: {
+            username: 'user',
+            password: 'pass',
+            totp: 'JBSWY3DPEHPK3PXP'
+          }
+        }
+      ]
+    }
+    const result = parseBitwardenJson(json)
+    expect(result[0].data.otp).toEqual({
+      secret: 'JBSWY3DPEHPK3PXP',
+      type: 'TOTP',
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30
+    })
+  })
+
   it('parses unknown type as custom', () => {
     const json = {
       items: [
@@ -283,6 +336,44 @@ describe('parseBitwardenCSV', () => {
         customFields: []
       }
     })
+  })
+
+  it('extracts TOTP from CSV login_totp into otp field', () => {
+    getRowsFromCsv.mockReturnValue([
+      [
+        'folder',
+        'favorite',
+        'type',
+        'name',
+        'notes',
+        'login_username',
+        'login_password',
+        'login_uri',
+        'login_totp',
+        'fields'
+      ],
+      [
+        '',
+        'false',
+        'login',
+        'TOTP Login',
+        '',
+        'user',
+        'pass',
+        'example.com',
+        'JBSWY3DPEHPK3PXP',
+        ''
+      ]
+    ])
+    const result = parseBitwardenCSV('csvText')
+    expect(result[0].data.otp).toEqual({
+      secret: 'JBSWY3DPEHPK3PXP',
+      type: 'TOTP',
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30
+    })
+    expect(result[0].data.customFields).toEqual([])
   })
 
   it('parses multiple websites', () => {

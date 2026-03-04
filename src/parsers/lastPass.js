@@ -1,5 +1,6 @@
 import { addHttps } from '../utils/addHttps'
 import { getRowsFromCsv } from '../utils/getRowsFromCsv'
+import { parseOtpField } from '../utils/parseOtpField'
 
 const NOTE_TYPE_CREDIT_CARD = /NoteType:Credit Card/i
 const NOTE_TYPE_ADDRESS_OR_IDENTITY = /NoteType:Address|NoteType:Identity/i
@@ -258,6 +259,14 @@ export const parseLastPassCsv = (text) => {
         usedNotes.add(extra)
       }
 
+      let lastPassOtp = null
+      if (extra) {
+        const totpMatch = extra.match(/otpauth:\/\/\S+/)
+        if (totpMatch) {
+          lastPassOtp = parseOtpField(totpMatch[0])
+        }
+      }
+
       result.push({
         type: 'login',
         folder,
@@ -268,7 +277,8 @@ export const parseLastPassCsv = (text) => {
           password,
           note: extra || '',
           websites,
-          customFields: toCustomFields(extra, usedNotes)
+          customFields: toCustomFields(extra, usedNotes),
+          ...(lastPassOtp ? { otp: lastPassOtp } : {})
         }
       })
     }
